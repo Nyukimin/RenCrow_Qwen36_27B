@@ -43,10 +43,16 @@ scripts/bench.sh
 scripts/restart.sh
 ```
 
-`scripts/restart.sh` replaces only the process listening on backend port
-`18084`. The `8084` RenCrow proxy is left running. By default it starts Wild
+`scripts/restart.sh` must first verify that the listener on reserved backend
+port `18084` belongs to the current Wild task, then replace only that task. An
+unknown or different owner is a conflict and is not stopped. The `8084` RenCrow proxy is left running. By default it starts Wild
 through the RenCrow mgmt API so the backend is owned by the same daemon as the
 current production process.
+
+It never selects another port when `18084` is occupied. Task identity, release
+verification, same-port startup, and failure semantics follow the
+[RenCrow_CORE reserved-port contract](https://github.com/Nyukimin/RenCrow_CORE/blob/main/docs/04_アーキテクチャ概要.md#予約portと同一taskの置換起動契約).
+The reservation value itself remains owned by the RenCrow_LLM host config.
 
 All defaults live in `config/qwen36.env` and can be overridden through
 environment variables.
