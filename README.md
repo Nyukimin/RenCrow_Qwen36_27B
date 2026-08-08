@@ -5,24 +5,35 @@ backend:
 
 - frontend proxy: `http://127.0.0.1:8084`
 - backend server: `http://127.0.0.1:18084`
-- model: `/Users/yukimi/models/Qwen3.6-27B-Uncensored-Heretic-v2-MLX-4bit`
-- Python runtime: `/Users/yukimi/RenCrow/RenCrow_LLM/.venv/bin/python3`
+- Backend: llama.cpp b10327
+- model: `/Users/yukimi/models/Qwen3.6-27B-Uncensored-Heretic-v2-GGUF/Qwen3.6-27B-uncensored-heretic-v2-Q4_K_M.gguf`
+- runtime: `/Users/yukimi/.rencrow/runtimes/llama.cpp/b10327/llama-server`
 - process cwd: `/Users/yukimi/RenCrow/RenCrow_LLM`
-- stable start path: `/Users/yukimi/RenCrow/RenCrow_LLM/scripts/start_mlx_vlm_backend.sh Wild`
+- stable wrapper: `scripts/llama-server.sh`
 
-The wrapper keeps the public RenCrow endpoint unchanged and only changes how
-the MLX backend is started.
+The wrapper keeps the public RenCrow endpoint unchanged and changes only the
+Backend engine behind the RenCrow LLM Runtime.
 
-Automatic Prefix Cache is enabled by default through `QWEN36_APC_ENABLED=1`.
-The backend owns the cache, and `scripts/health.sh` fails when `/health` does
-not report `apc_enabled=true`. `/v1/cache/stats` is printed for hit validation.
+With `QWEN36_USE_MGMT=1`, the deployed RenCrow_LLM Wild role config must use
+`backend_type = "llamacpp"` and set `llamacpp_command` to this repository's
+`scripts/llama-server.sh`. The mgmt daemon then owns boot/restart lifecycle;
+the wrapper owns only Qwen-specific Backend tuning.
 
-By default `scripts/start.sh` delegates to the verified RenCrow_LLM start script.
-Direct `mlx_vlm.server` startup can be tested with `QWEN36_DIRECT_START=1`, but
-runtime tuning flags are intentionally opt-in. In this local `mlx_vlm` build,
-`--max-kv-size`, 4-bit uniform KV, and even an explicit `--max-tokens 8192`
-start and pass `/health`, but the backend exits on the first generation request
-for this Qwen3.6 model.
+llama.cpp prompt caching is enabled by default. Qwen3.6 uses hybrid recurrent
+and full-attention layers, so `QWEN36_LLAMA_CHECKPOINT_MIN_STEP=256` keeps a
+checkpoint close to the stable SystemPrompt boundary. `scripts/health.sh`
+checks Backend health, the `Wild` model alias, the 65,536-token slot, metrics,
+the unchanged proxy, and the listener.
+
+The MLX runtime remains an explicit fallback by setting
+`QWEN36_BACKEND_TYPE=mlx` and an MLX model directory. It is not the default:
+its exact-only APC reused a fully identical request but reprocessed the stable
+4.4K-token prefix whenever the final user message changed.
+
+On the measured Midori payload, the suffix-change TTFT moved from 14.04 seconds
+with MLX to 0.94 seconds with llama.cpp, with 4,440 of 4,484 input tokens reused.
+Cold TTFT is not improved (17.19 seconds versus 15.56 seconds); the gain comes
+from correct conversation-prefix reuse.
 
 ## Commands
 

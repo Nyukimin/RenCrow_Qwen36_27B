@@ -4,25 +4,50 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/env.sh"
 
-if [[ ! -x "${QWEN36_PYTHON}" ]]; then
-  echo "python not executable: ${QWEN36_PYTHON}" >&2
-  exit 1
-fi
-if [[ ! -d "${QWEN36_MODEL}" ]]; then
-  echo "model directory not found: ${QWEN36_MODEL}" >&2
+if [[ ! -e "${QWEN36_MODEL}" ]]; then
+  echo "model not found: ${QWEN36_MODEL}" >&2
   exit 1
 fi
 if [[ ! -d "${QWEN36_RUNTIME_CWD}" ]]; then
   echo "runtime cwd not found: ${QWEN36_RUNTIME_CWD}" >&2
   exit 1
 fi
-if [[ "${QWEN36_DIRECT_START}" != "1" && ! -x "${QWEN36_RENCROW_START_SCRIPT}" ]]; then
+if [[ "${QWEN36_BACKEND_TYPE}" == "mlx" && "${QWEN36_DIRECT_START}" != "1" && ! -x "${QWEN36_RENCROW_START_SCRIPT}" ]]; then
   echo "RenCrow start script not executable: ${QWEN36_RENCROW_START_SCRIPT}" >&2
   exit 1
 fi
 
 mkdir -p "${QWEN36_RUN_DIR}"
 cd "${QWEN36_RUNTIME_CWD}"
+
+if [[ "${QWEN36_BACKEND_TYPE}" == "llamacpp" ]]; then
+  exec "${SCRIPT_DIR}/llama-server.sh" \
+    -m "${QWEN36_MODEL}" \
+    --host "${QWEN36_HOST}" \
+    --port "${QWEN36_BACKEND_PORT}" \
+    -c "${QWEN36_LLAMA_CONTEXT_SIZE}" \
+    -np "${QWEN36_LLAMA_PARALLEL}" \
+    --prio 3 \
+    --prio-batch 3 \
+    -ngl "${QWEN36_LLAMA_GPU_LAYERS}" \
+    --flash-attn "${QWEN36_LLAMA_FLASH_ATTN}" \
+    --cache-type-k "${QWEN36_LLAMA_CACHE_TYPE_K}" \
+    --cache-type-v "${QWEN36_LLAMA_CACHE_TYPE_V}" \
+    --jinja
+fi
+
+if [[ "${QWEN36_BACKEND_TYPE}" != "mlx" ]]; then
+  echo "unsupported backend type: ${QWEN36_BACKEND_TYPE}" >&2
+  exit 1
+fi
+if [[ ! -x "${QWEN36_PYTHON}" ]]; then
+  echo "python not executable: ${QWEN36_PYTHON}" >&2
+  exit 1
+fi
+if [[ ! -d "${QWEN36_MODEL}" ]]; then
+  echo "MLX model directory not found: ${QWEN36_MODEL}" >&2
+  exit 1
+fi
 
 export APC_ENABLED="${QWEN36_APC_ENABLED}"
 export APC_BLOCK_SIZE="${QWEN36_APC_BLOCK_SIZE}"
