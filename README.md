@@ -13,6 +13,10 @@ backend:
 The wrapper keeps the public RenCrow endpoint unchanged and only changes how
 the MLX backend is started.
 
+Automatic Prefix Cache is enabled by default through `QWEN36_APC_ENABLED=1`.
+The backend owns the cache, and `scripts/health.sh` fails when `/health` does
+not report `apc_enabled=true`. `/v1/cache/stats` is printed for hit validation.
+
 By default `scripts/start.sh` delegates to the verified RenCrow_LLM start script.
 Direct `mlx_vlm.server` startup can be tested with `QWEN36_DIRECT_START=1`, but
 runtime tuning flags are intentionally opt-in. In this local `mlx_vlm` build,
